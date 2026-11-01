@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2a2a2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calendario">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Generador de Calendario</title>
+<style>
+@font-face { font-family:'Barlow'; font-weight:400; font-style:normal; font-display:swap; src:url('fonts/barlow-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family:'Barlow'; font-weight:700; font-style:normal; font-display:swap; src:url('fonts/barlow-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family:'Barlow'; font-weight:900; font-style:normal; font-display:swap; src:url('fonts/barlow-latin-900-normal.woff2') format('woff2'); }
+@font-face { font-family:'Barlow Condensed'; font-weight:400; font-style:normal; font-display:swap; src:url('fonts/barlow-condensed-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family:'Barlow Condensed'; font-weight:700; font-style:normal; font-display:swap; src:url('fonts/barlow-condensed-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family:'Barlow Condensed'; font-weight:900; font-style:normal; font-display:swap; src:url('fonts/barlow-condensed-latin-900-normal.woff2') format('woff2'); }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f3ef; --panel: #ffffff; --border: #2a2a2a; --text: #2a2a2a; --muted: #888; --radius: 8px;
+  --yellow: #e8edaa; --blue: #C9E8F5; --pink: #EDD8EC; --green: #D8EDB0;
+}
+body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; min-height: 100dvh; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 310px; min-width: 310px; background: var(--panel); border-right: 2px solid var(--border);
+  padding: 22px 18px; display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto; height: 100vh; position: sticky; top: 0;
+}
+.sidebar h1 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:20px; text-transform:uppercase; letter-spacing:-0.5px; }
+.sidebar h1 span { color:var(--muted); font-weight:400; }
+.stitle { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:5px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+select, input[type="number"], input[type="text"] {
+  font-family:'Barlow',sans-serif; font-size:13px; padding:7px 10px;
+  border:1.5px solid #ddd; border-radius:6px; background:var(--bg); color:var(--text); width:100%;
+}
+select:focus, input:focus { outline:none; border-color:var(--border); }
+hr.sep { border:none; border-top:1.5px solid #eee; }
+
+.semana-ref { background:var(--bg); border-radius:6px; padding:10px 12px; font-size:11px; line-height:1.8; border:1px solid #e0ddd8; color:var(--muted); }
+.semana-ref b { color:var(--text); font-weight:700; }
+.sw-row { display:flex; gap:14px; align-items:center; font-size:13px; }
+.sw-row label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+.sw-row input[type="radio"] { accent-color:var(--border); }
+
+/* Festivos */
+.fest-add { display:flex; gap:6px; }
+.fest-add input[type="number"] { width:70px; }
+.fest-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.ftag { display:flex; align-items:center; gap:4px; background:#fff3cd; border:1.5px solid #e0a800; border-radius:5px; padding:3px 8px; font-size:12px; }
+.ftag .x { cursor:pointer; color:var(--muted); margin-left:2px; }
+
+/* Overrides list */
+.ov-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
+.ov-card { background:#fff; border:1.5px solid #eee; border-radius:6px; padding:8px; display:flex; flex-direction:column; gap:5px; position:relative; }
+.ov-card-row { display:grid; grid-template-columns:52px 1fr 1fr; gap:5px; }
+.ov-card input { font-size:12px; padding:5px 7px; }
+.del-btn { position:absolute; top:6px; right:6px; background:none; border:none; cursor:pointer; color:var(--muted); font-size:15px; line-height:1; }
+.del-btn:hover { color:#c0392b; }
+
+/* Color dots */
+.cdr { display:flex; gap:5px; align-items:center; }
+.cdot { width:18px; height:18px; border-radius:4px; border:2px solid transparent; cursor:pointer; transition:border-color 0.1s,transform 0.1s; }
+.cdot:hover { transform:scale(1.2); }
+.cdot.on { border-color:var(--border); }
+.cdot[data-c="yellow"] { background:var(--yellow); }
+.cdot[data-c="blue"]   { background:var(--blue); }
+.cdot[data-c="pink"]   { background:var(--pink); }
+.cdot[data-c="green"]  { background:var(--green); }
+.cdot[data-c="none"]   { background:#fff; border:1.5px solid #ddd; }
+.cdot[data-c="none"].on { border-color:var(--border); }
+
+/* Buttons */
+.btn-gen { font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:900; text-transform:uppercase; letter-spacing:1px; padding:11px; background:var(--border); color:white; border:none; border-radius:var(--radius); cursor:pointer; transition:opacity 0.15s; width:100%; }
+.btn-gen:hover { opacity:0.85; }
+.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.btn-sec { font-family:'Barlow',sans-serif; font-size:12px; font-weight:700; padding:8px; background:white; color:var(--text); border:1.5px solid #ddd; border-radius:var(--radius); cursor:pointer; }
+.btn-sec:hover { border-color:var(--border); background:var(--bg); }
+.btn-sm { font-family:'Barlow',sans-serif; font-size:12px; font-weight:700; padding:5px 10px; background:var(--border); color:white; border:none; border-radius:5px; cursor:pointer; white-space:nowrap; }
+
+/* MAIN */
+.main { flex:1; padding:32px 40px; display:flex; flex-direction:column; align-items:center; }
+.cal-wrap { width:100%; max-width:920px; }
+.cal-card { background:white; padding:36px 36px 44px; border-radius:12px; box-shadow:0 2px 24px rgba(0,0,0,0.08); }
+
+/* CALENDAR */
+.cal-title { font-family:'Barlow Condensed',sans-serif; font-size:56px; font-weight:900; letter-spacing:-2px; text-transform:uppercase; color:#2a2a2a; margin-bottom:16px; line-height:1; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-left:2.5px solid #2a2a2a; border-top:2.5px solid #2a2a2a; }
+.cal-head { font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:#2a2a2a; padding:8px 10px; border-right:2.5px solid #2a2a2a; border-bottom:2.5px solid #2a2a2a; }
+.cal-day { border-right:2.5px solid #2a2a2a; border-bottom:2.5px solid #2a2a2a; padding:8px 10px; min-height:86px; cursor:pointer; transition:filter 0.1s; position:relative; }
+.cal-day:hover { filter:brightness(0.95); }
+.cal-day.other { opacity:0.38; cursor:pointer; }
+.cal-day.pal-yellow { background:var(--yellow); }
+.cal-day.pal-blue   { background:var(--blue); }
+.cal-day.pal-pink   { background:var(--pink); }
+.cal-day.pal-green  { background:var(--green); }
+.d-num { font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:900; color:#5a5550; line-height:1; margin-bottom:4px; }
+.d-line { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; color:#5a5550; line-height:1.4; text-transform:uppercase; }
+.fbadge { position:absolute; top:5px; right:5px; font-size:9px; background:#e74c3c; color:white; border-radius:3px; padding:1px 4px; font-weight:700; letter-spacing:0.3px; }
+
+/* Modal */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; z-index:100; }
+.mbox { background:white; border-radius:12px; padding:24px; width:320px; box-shadow:0 8px 40px rgba(0,0,0,0.18); display:flex; flex-direction:column; gap:12px; }
+.mbox h3 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:20px; text-transform:uppercase; }
+.mfield { display:flex; flex-direction:column; gap:4px; }
+.mfield label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--muted); }
+.mbtns { display:flex; gap:8px; }
+.mbtns button { flex:1; padding:9px; border-radius:6px; border:1.5px solid #ddd; cursor:pointer; font-family:'Barlow',sans-serif; font-size:13px; font-weight:700; }
+.mbtns .msave { background:var(--border); color:white; border-color:var(--border); }
+.mbtns .mcanc { background:white; }
+.mbtns .mclr  { background:white; color:#c0392b; border-color:#f5c6c6; }
+
+.hs { display:none; }
+.hint { color:var(--muted); font-size:14px; padding:40px 20px; text-align:center; line-height:1.8; }
+.hint strong { color:var(--text); }
+
+.legend { display:flex; gap:12px; margin-top:12px; flex-wrap:wrap; }
+.leg { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+.legdot { width:13px; height:13px; border-radius:3px; }
+
+/* ── Barra superior y cajón (solo móvil) ── */
+.topbar, .close-side, .backdrop { display:none; }
+.cal-card.compact { padding:14px 8px 18px; border-radius:10px; }
+.compact .cal-title { font-size:34px; letter-spacing:-1px; margin-bottom:10px; }
+.compact .cal-grid { border-left-width:1.5px; border-top-width:1.5px; }
+.compact .cal-head { font-size:9px; padding:5px 1px; text-align:center; border-right-width:1.5px; border-bottom-width:1.5px; letter-spacing:0.2px; }
+.compact .hf { display:none; }
+.compact .hs { display:inline; }
+.compact .cal-day { min-height:60px; padding:4px 4px; border-right-width:1.5px; border-bottom-width:1.5px; }
+.compact .d-num { font-size:17px; margin-bottom:2px; }
+.compact .d-line { font-size:9.5px; line-height:1.25; }
+.compact .fbadge { font-size:7px; top:2px; right:2px; padding:0 3px; }
+
+@media (max-width: 820px) {
+  body { flex-direction:column; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    position:sticky; top:0; z-index:50; background:var(--panel); border-bottom:2px solid var(--border);
+    padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top));
+    padding-left:calc(12px + env(safe-area-inset-left)); padding-right:calc(12px + env(safe-area-inset-right));
+  }
+  .topbar .tb-title { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:19px; text-transform:uppercase; }
+  .topbar button { font-family:'Barlow',sans-serif; font-size:14px; font-weight:700; padding:9px 14px; border-radius:8px; border:1.5px solid #ddd; background:#fff; color:var(--text); }
+  .topbar button.tb-gen { background:var(--border); color:#fff; border-color:var(--border); }
+  .sidebar {
+    position:fixed; top:0; left:0; bottom:0; height:100%; width:min(92vw,380px); min-width:0; z-index:90;
+    transform:translateX(-105%); transition:transform .22s ease; box-shadow:4px 0 30px rgba(0,0,0,.2);
+    padding-top:calc(22px + env(safe-area-inset-top)); padding-bottom:calc(22px + env(safe-area-inset-bottom));
+  }
+  .sidebar.open { transform:none; }
+  .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:80; }
+  .backdrop.show { display:block; }
+  .close-side { display:block; position:absolute; top:calc(10px + env(safe-area-inset-top)); right:12px; background:none; border:none; font-size:28px; line-height:1; color:var(--muted); padding:6px 10px; }
+  .main { padding:12px; padding-left:calc(12px + env(safe-area-inset-left)); padding-right:calc(12px + env(safe-area-inset-right)); padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
+  select, input[type="number"], input[type="text"] { font-size:16px; padding:9px 10px; }
+  .ov-card input { font-size:16px; padding:7px 8px; }
+  .ov-card-row { grid-template-columns:58px 1fr 1fr; }
+  .ov-list { max-height:none; }
+  .btn-sec, .btn-sm { padding:11px; font-size:14px; }
+  .btn-sm { padding:9px 14px; }
+  .cdot { width:30px; height:30px; }
+  .cdr { gap:8px; }
+  .mbox { width:min(340px,92vw); max-height:90vh; max-height:90dvh; overflow-y:auto; }
+  .mbtns button { padding:12px; }
+  .mfield label { font-size:12px; }
+  .overlay { align-items:flex-start; padding-top:max(16px,env(safe-area-inset-top)); }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button onclick="toggleSidebar()">☰ Ajustes</button>
+  <span class="tb-title">Calendario</span>
+  <button class="tb-gen" onclick="generate()">Generar</button>
+</header>
+<div class="backdrop" id="backdrop" onclick="toggleSidebar(false)"></div>
+
+<aside class="sidebar" id="sidebar">
+  <button class="close-side" onclick="toggleSidebar(false)" aria-label="Cerrar">×</button>
+  <h1>Calendario<br><span>Generador</span></h1>
+
+  <!-- Mes / Año -->
+  <div>
+    <div class="stitle">Mes y año</div>
+    <div class="row2">
+      <select id="sel-month" onchange="onPeriodChange()">
+        <option value="0">Enero</option><option value="1">Febrero</option>
+        <option value="2">Marzo</option><option value="3">Abril</option>
+        <option value="4">Mayo</option><option value="5">Junio</option>
+        <option value="6">Julio</option><option value="7">Agosto</option>
+        <option value="8">Septiembre</option><option value="9">Octubre</option>
+        <option value="10">Noviembre</option><option value="11">Diciembre</option>
+      </select>
+      <input type="number" id="sel-year" value="2026" min="2020" max="2040" onchange="onPeriodChange()">
+    </div>
+  </div>
+
+  <!-- Semana inicio -->
+  <div>
+    <div class="stitle">Primera semana del mes</div>
+    <div class="sw-row">
+      <label><input type="radio" name="sw" value="A" id="sw-A"> Semana A</label>
+      <label><input type="radio" name="sw" value="B" id="sw-B" checked> Semana B</label>
+    </div>
+    <div class="semana-ref" style="margin-top:7px;">
+      <div><b>Sem. A:</b> Lun 18:30/21:30 · Mar PINEDA · Jue PINEDA · Sáb 19:30/12:00</div>
+      <div><b>Sem. B:</b> Lun PINEDA · Mié PINEDA · Jue 18:30/21:30 · Vie 18:30/12:00</div>
+      <div style="margin-top:2px;">PINEDA solo si el día siguiente es laborable</div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- Festivos -->
+  <div>
+    <div class="stitle">Festivos del mes</div>
+    <div class="fest-add">
+      <input type="number" id="fd" min="1" max="31" placeholder="Día" style="width:70px;">
+      <input type="text" id="fn" placeholder="Nombre (opcional)">
+      <button class="btn-sm" onclick="addFestivo()">+</button>
+    </div>
+    <div class="fest-tags" id="fest-tags"></div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- Tardes Esther -->
+  <div>
+    <div class="stitle">Tardes Esther</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">Si el día está vacío, el 18:30/21:30 de esa semana se mueve aquí.</div>
+    <div class="fest-add">
+      <input type="number" id="ed" min="1" max="31" placeholder="Día" style="width:70px;">
+      <button class="btn-sm" style="background:#7c5cbf;" onclick="addEsther()">+</button>
+    </div>
+    <div class="fest-tags" id="esther-tags"></div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- Cambios manuales -->
+  <div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+      <span class="stitle" style="margin-bottom:0">Cambios manuales</span>
+      <button class="btn-sm" onclick="addOv()">+ Añadir</button>
+    </div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">O haz clic en cualquier día del calendario generado.</div>
+    <div class="ov-list" id="ov-list"></div>
+  </div>
+
+  <!-- Actions -->
+  <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px; padding-top:8px;">
+    <button class="btn-gen" onclick="genAndClose()">Generar calendario</button>
+    <button class="btn-gen" id="btn-share" style="display:none; background:#7c5cbf;" onclick="sharePNG()">↗ Compartir PNG</button>
+    <div class="btn-row">
+      <button class="btn-sec" onclick="downloadPNG()">⬇ PNG</button>
+      <button class="btn-sec" onclick="exportCSV()">⬇ CSV</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-sec" onclick="document.getElementById('csv-in').click()">↑ Importar CSV</button>
+      <button class="btn-sec" onclick="clearAll()">Limpiar</button>
+    </div>
+    <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="importCSV(event)">
+  </div>
+</aside>
+
+<main class="main">
+  <div class="cal-wrap">
+    <div id="calendar-render" class="cal-card">
+      <div class="hint">
+        <strong>Selecciona el mes y pulsa "Generar calendario"</strong><br>
+        El horario se genera automáticamente según semanas alternas.<br>
+        Marca los festivos arriba para que se ajuste el PINEDA.<br><br>
+        Haz clic en cualquier día del calendario para editarlo.
+      </div>
+    </div>
+    <div class="legend" id="legend" style="display:none">
+      <div class="leg"><div class="legdot" style="background:var(--blue)"></div>Turno normal</div>
+      <div class="leg"><div class="legdot" style="background:var(--green)"></div>Doble turno (18:30/21:30)</div>
+      <div class="leg"><div class="legdot" style="background:var(--pink)"></div>Cambio</div>
+      <div class="leg"><div class="legdot" style="background:var(--yellow)"></div>Libre / especial</div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="mbox">
+    <h3 id="m-title">Editar día</h3>
+    <div class="mfield">
+      <label>Línea 1</label>
+      <input type="text" id="m-l1" placeholder="18:30">
+    </div>
+    <div class="mfield">
+      <label>Línea 2</label>
+      <input type="text" id="m-l2" placeholder="PINEDA">
+    </div>
+    <div class="mfield">
+      <label>Color</label>
+      <div class="cdr" id="m-cdr">
+        <div class="cdot" data-c="yellow" onclick="setMC('yellow')"></div>
+        <div class="cdot" data-c="blue"   onclick="setMC('blue')"></div>
+        <div class="cdot" data-c="pink"   onclick="setMC('pink')"></div>
+        <div class="cdot" data-c="green"  onclick="setMC('green')"></div>
+        <div class="cdot" data-c="none"   onclick="setMC('none')"></div>
+        <span style="font-size:10px;color:var(--muted)">Amar · Azul · Rosa · Verde · Sin</span>
+      </div>
+    </div>
+    <div class="mfield">
+      <label><input type="checkbox" id="m-fest"> Marcar como festivo (vacía el día)</label>
+    </div>
+    <div class="mfield">
+      <label><input type="checkbox" id="m-esther"> Tarde Esther (mueve el 18:30/21:30 a este día)</label>
+    </div>
+    <div class="mbtns">
+      <button class="mclr" onclick="clearMDay()">Borrar</button>
+      <button class="mcanc" onclick="closeModal()">Cancelar</button>
+      <button class="msave" onclick="saveModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="html2canvas.min.js"></script>
+<script>
+const MNAMES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const DNAMES = ['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'];
+
+let festivos  = {}; // "YYYY-M-D" → label
+let clickOvs  = {}; // "YYYY-M-D" → {line1,line2,color} | null
+let ovList    = []; // sidebar overrides
+let ovId      = 0;
+let mKey      = null;
+let mColor    = 'blue';
+
+function esc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function isCompact(){ return window.matchMedia('(max-width: 820px)').matches; }
+
+// ── GUARDADO LOCAL ────────────────────────────────────────────────────────────
+const LS_KEY = 'calendarioGenerator.v1';
+function saveState(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      festivos, clickOvs, ovList, ovId, esthers:[...esthers],
+      sel:{
+        month:document.getElementById('sel-month').value,
+        year:document.getElementById('sel-year').value,
+        sw:document.querySelector('input[name="sw"]:checked').value
+      }
+    }));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    const st = JSON.parse(raw);
+    festivos = st.festivos||{}; clickOvs = st.clickOvs||{};
+    ovList = st.ovList||[]; ovId = st.ovId||0;
+    esthers = new Set(st.esthers||[]);
+    if(st.sel){
+      document.getElementById('sel-month').value = st.sel.month;
+      document.getElementById('sel-year').value = st.sel.year;
+      const r = document.getElementById('sw-'+st.sel.sw); if(r) r.checked = true;
+    }
+    return true;
+  }catch(e){ return false; }
+}
+
+// ── CAJÓN LATERAL (móvil) ─────────────────────────────────────────────────────
+function toggleSidebar(force){
+  const open = force===undefined ? !document.getElementById('sidebar').classList.contains('open') : force;
+  document.getElementById('sidebar').classList.toggle('open',open);
+  document.getElementById('backdrop').classList.toggle('show',open);
+}
+function genAndClose(){ generate(); if(isCompact()) toggleSidebar(false); }
+
+// ── FESTIVOS ──────────────────────────────────────────────────────────────────
+function fKey(y,m1,d){ return `${y}-${m1}-${d}`; }
+
+function addFestivo(){
+  const d = parseInt(document.getElementById('fd').value);
+  const n = document.getElementById('fn').value.trim() || 'Festivo';
+  if(!d||d<1||d>31) return;
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  festivos[fKey(y,m1,d)] = n;
+  document.getElementById('fd').value='';
+  document.getElementById('fn').value='';
+  renderFestivoTags();
+}
+
+function removeFestivo(k){ delete festivos[k]; renderFestivoTags(); }
+
+function renderFestivoTags(){
+  const c = document.getElementById('fest-tags'); c.innerHTML='';
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  Object.entries(festivos).forEach(([k,lbl])=>{
+    const p = k.split('-');
+    if(parseInt(p[0])!==y || parseInt(p[1])!==m1) return;
+    const t = document.createElement('div'); t.className='ftag';
+    t.innerHTML = `Día ${p[2]} – ${esc(lbl)} <span class="x" onclick="removeFestivo('${k}')">×</span>`;
+    c.appendChild(t);
+  });
+  saveState();
+}
+
+function onPeriodChange(){ renderFestivoTags(); renderEstherTags(); renderOvList(); saveState(); }
+
+function isFest(y,m1,d){ return !!festivos[fKey(y,m1,d)]; }
+
+function isWorkday(y,m1,d){
+  const dt = new Date(y,m1-1,d);
+  const dw = dt.getDay();
+  return dw!==0 && dw!==6 && !isFest(y,m1,d);
+}
+
+function nextIsWorkday(y,m1,d){
+  const nx = new Date(y,m1-1,d+1);
+  return isWorkday(nx.getFullYear(), nx.getMonth()+1, nx.getDate());
+}
+
+function nextIsFestivo(y,m1,d){
+  const nx = new Date(y,m1-1,d+1);
+  return isFest(nx.getFullYear(), nx.getMonth()+1, nx.getDate());
+}
+
+// PINEDA si el día siguiente es laborable; 12:00 en cualquier otro caso
+function pinedaOrEnd(y,m1,d){
+  if(nextIsWorkday(y,m1,d)) return 'PINEDA';
+  return '12:00';
+}
+
+// ── AUTO SCHEDULE ─────────────────────────────────────────────────────────────
+// Lunes (00:00) de la semana de una fecha
+function mondayOf(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dw = d.getDay();
+  d.setDate(d.getDate() - (dw===0 ? 6 : dw-1));
+  return d;
+}
+
+// Semanas completas entre dos fechas (por sus lunes). Math.round absorbe el cambio horario.
+function weeksBetween(a, b){
+  return Math.round((mondayOf(b) - mondayOf(a)) / (7*86400000));
+}
+
+// anchor: fecha cuya semana es "semIni". Por defecto el día 1 del mes pedido.
+// Para los días grises de meses vecinos se pasa el día 1 del mes que se está viendo.
+function getAuto(year, month1, semIni, anchor){
+  const days = new Date(year,month1,0).getDate();
+  const ref  = anchor || new Date(year,month1-1,1);
+  const res  = {};
+
+  function wl(date){
+    const odd = Math.abs(weeksBetween(ref, date))%2===1;
+    if(!odd) return semIni;
+    return semIni==='A'?'B':'A';
+  }
+
+  for(let d=1;d<=days;d++){
+    if(isFest(year,month1,d)) continue;
+    const dt = new Date(year,month1-1,d);
+    const dw = dt.getDay(); // 0=Sun,1=Mon…6=Sat
+    const wk = wl(dt);
+
+    if(wk==='A'){
+      if(dw===1) res[d]={line1:'18:30',line2:'21:30',color:'green'};
+      if(dw===2){ const p=pinedaOrEnd(year,month1,d); res[d]={line1:'18:30',line2:p,color:'blue'}; }
+      if(dw===4){ const p=pinedaOrEnd(year,month1,d); res[d]={line1:'18:30',line2:p,color:'blue'}; }
+      if(dw===6) res[d]={line1:'19:30',line2:'12:00',color:'blue'};
+    } else {
+      if(dw===1){ const p=pinedaOrEnd(year,month1,d); res[d]={line1:'18:30',line2:p,color:'blue'}; }
+      if(dw===3){ const p=pinedaOrEnd(year,month1,d); res[d]={line1:'18:30',line2:p,color:'blue'}; }
+      if(dw===4) res[d]={line1:'18:30',line2:'21:30',color:'green'};
+      if(dw===5) res[d]={line1:'18:30',line2:'12:00',color:'blue'};
+    }
+  }
+  return res;
+}
+
+// ── TARDES ESTHER ─────────────────────────────────────────────────────────────
+let esthers = new Set(); // claves "YYYY-M-D" marcadas como Tarde Esther
+
+function addEsther(){
+  const d = parseInt(document.getElementById('ed').value);
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  if(!d||d<1||d>new Date(y,m1,0).getDate()) return;
+  esthers.add(fKey(y,m1,d));
+  document.getElementById('ed').value='';
+  renderEstherTags();
+}
+
+function removeEsther(k){ esthers.delete(k); renderEstherTags(); generate(); }
+
+function renderEstherTags(){
+  const c = document.getElementById('esther-tags'); c.innerHTML='';
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  [...esthers].map(k=>k.split('-').map(Number))
+    .filter(p=>p[0]===y && p[1]===m1)
+    .sort((a,b)=>a[2]-b[2])
+    .forEach(p=>{
+      const k = fKey(p[0],p[1],p[2]);
+      const t = document.createElement('div'); t.className='ftag';
+      t.style.background='#ede8f8'; t.style.borderColor='#9b7fe0';
+      t.innerHTML=`Día ${p[2]} <span class="x" onclick="removeEsther('${k}')">×</span>`;
+      c.appendChild(t);
+    });
+  saveState();
+}
+
+// Mueve el 18:30/21:30 de la semana (lunes-domingo, aunque cruce de mes) al día Esther.
+// map: "YYYY-M-D" → datos, con los 3 meses visibles.
+function applyEsther(map, year, month1){
+  esthers.forEach(key=>{
+    const p = key.split('-').map(Number);
+    if(Math.abs((p[0]*12+p[1]) - (year*12+month1)) > 1) return; // fuera de lo visible
+    if(map[key] || isFest(p[0],p[1],p[2])) return;              // día ya con turno o festivo
+
+    const monday = mondayOf(new Date(p[0],p[1]-1,p[2]));
+    for(let i=0;i<7;i++){
+      const dt = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate()+i);
+      const k2 = fKey(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
+      const data = map[k2];
+      if(data && data.line1==='18:30' && data.line2==='21:30'){
+        map[key] = {line1:'18:30', line2:'21:30', color:'green'};
+        delete map[k2];
+        break;
+      }
+    }
+  });
+}
+
+// Horario final de mes anterior + actual + siguiente: auto → Esther → cambios de la barra → clics
+function buildSchedule(year, month1, semIni){
+  const anchor = new Date(year,month1-1,1);
+  const map = {};
+  [-1,0,1].forEach(off=>{
+    const dt = new Date(year,month1-1+off,1);
+    const y = dt.getFullYear(), m = dt.getMonth()+1;
+    const a = getAuto(y,m,semIni,anchor);
+    Object.keys(a).forEach(d=>{ map[fKey(y,m,parseInt(d))] = a[d]; });
+  });
+  applyEsther(map, year, month1);
+  ovList.forEach(ov=>{
+    const d = parseInt(ov.day);
+    if(!d || d<1 || d>new Date(ov.y,ov.m1,0).getDate()) return;
+    map[fKey(ov.y,ov.m1,d)] = {line1:ov.l1,line2:ov.l2,color:ov.color};
+  });
+  Object.entries(clickOvs).forEach(([k,val])=>{
+    if(val===null) delete map[k]; else map[k]=val;
+  });
+  return map;
+}
+
+// ── OVERRIDES (sidebar) ───────────────────────────────────────────────────────
+function addOv(day='',l1='',l2='',color='pink'){
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  ovList.push({id:++ovId,day,l1,l2,color,y,m1});
+  renderOvList();
+}
+function removeOv(id){ ovList=ovList.filter(o=>o.id!==id); renderOvList(); }
+function updOv(id,f,v){ const o=ovList.find(o=>o.id===id); if(o){ o[f]=v; saveState(); } }
+function setOvColor(id,c){ const o=ovList.find(o=>o.id===id); if(o){o.color=c;renderOvList();} }
+
+function renderOvList(){
+  const c = document.getElementById('ov-list'); c.innerHTML='';
+  const m1 = parseInt(document.getElementById('sel-month').value)+1;
+  const y  = parseInt(document.getElementById('sel-year').value);
+  ovList.filter(ov=>ov.y===y && ov.m1===m1).forEach(ov=>{
+    const el = document.createElement('div'); el.className='ov-card';
+    el.innerHTML=`
+      <button class="del-btn" onclick="removeOv(${ov.id})">×</button>
+      <div class="ov-card-row">
+        <input type="number" min="1" max="31" value="${esc(ov.day)}" placeholder="Día" oninput="updOv(${ov.id},'day',this.value)">
+        <input type="text" value="${esc(ov.l1)}" placeholder="18:30" oninput="updOv(${ov.id},'l1',this.value)">
+        <input type="text" value="${esc(ov.l2)}" placeholder="PINEDA" oninput="updOv(${ov.id},'l2',this.value)">
+      </div>
+      <div class="cdr">
+        ${['yellow','blue','pink','green','none'].map(c=>`<div class="cdot ${ov.color===c?'on':''}" data-c="${c}" onclick="setOvColor(${ov.id},'${c}')"></div>`).join('')}
+      </div>
+    `;
+    c.appendChild(el);
+  });
+  saveState();
+}
+
+// ── GENERATE ──────────────────────────────────────────────────────────────────
+function generate(){
+  const month0 = parseInt(document.getElementById('sel-month').value);
+  const month1 = month0+1;
+  const year   = parseInt(document.getElementById('sel-year').value);
+  const semIni = document.querySelector('input[name="sw"]:checked').value;
+  const days   = new Date(year,month1,0).getDate();
+
+  const sched = buildSchedule(year,month1,semIni);
+
+  const fd = new Date(year,month0,1).getDay();
+  const offset = fd===0 ? 6 : fd-1;
+
+  const prev = new Date(year,month0-1,1), next = new Date(year,month0+1,1);
+  const prevY=prev.getFullYear(), prevM1=prev.getMonth()+1;
+  const nextY=next.getFullYear(), nextM1=next.getMonth()+1;
+  const prevDays = new Date(prevY,prevM1,0).getDate();
+
+  function cell(y,m1,d,other){
+    const k = fKey(y,m1,d);
+    const fest = isFest(y,m1,d);
+    const data = sched[k];
+    const show = data && !fest;
+    const pal  = show ? `pal-${data.color}` : '';
+    const lbl  = other ? `,'${MNAMES[m1-1]}'` : '';
+    let h = `<div class="cal-day${other?' other':''} ${pal}" data-key="${k}" onclick="openModal('${k}',${d}${lbl})">`;
+    if(fest) h += `<span class="fbadge">Festivo</span>`;
+    h += `<div class="d-num">${d}</div>`;
+    if(show){
+      if(data.line1) h += `<div class="d-line">${esc(data.line1)}</div>`;
+      if(data.line2) h += `<div class="d-line">${esc(data.line2)}</div>`;
+    }
+    return h + `</div>`;
+  }
+
+  let html = `<div class="cal-title">${MNAMES[month0]} ${year}</div><div class="cal-grid">`;
+  DNAMES.forEach(d=>{ html+=`<div class="cal-head"><span class="hf">${d}</span><span class="hs">${d.slice(0,3)}</span></div>`; });
+
+  for(let i=offset-1;i>=0;i--) html += cell(prevY,prevM1,prevDays-i,true);
+  for(let d=1;d<=days;d++)     html += cell(year,month1,d,false);
+  const rem=(offset+days)%7;
+  if(rem!==0) for(let d=1;d<=7-rem;d++) html += cell(nextY,nextM1,d,true);
+
+  html+=`</div>`;
+  const card=document.getElementById('calendar-render');
+  card.classList.toggle('compact',isCompact());
+  card.innerHTML=html;
+  document.getElementById('legend').style.display='flex';
+  pngCache=null; schedulePrerender();
+  saveState();
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+let mOrig = null; // estado del día al abrir el modal, para guardar solo lo que cambia
+
+function openModal(key,day,monthLabel){
+  mKey=key;
+  const cell=document.querySelector(`[data-key="${key}"]`);
+  const lines=cell?cell.querySelectorAll('.d-line'):[];
+  const label = monthLabel ? `Día ${day} · ${monthLabel}` : `Día ${day}`;
+  document.getElementById('m-title').textContent=label;
+  const l1=lines[0]?lines[0].textContent:'';
+  const l2=lines[1]?lines[1].textContent:'';
+  document.getElementById('m-l1').value=l1;
+  document.getElementById('m-l2').value=l2;
+  let dc='none';
+  ['yellow','blue','pink','green'].forEach(c=>{ if(cell&&cell.classList.contains(`pal-${c}`)) dc=c; });
+  mColor=dc;
+  renderMColors();
+  const p=key.split('-');
+  const y=parseInt(p[0]),m1=parseInt(p[1]),d=parseInt(p[2]);
+  const fest=isFest(y,m1,d), esther=esthers.has(key);
+  document.getElementById('m-fest').checked=fest;
+  document.getElementById('m-esther').closest('.mfield').style.display='';
+  document.getElementById('m-esther').checked=esther;
+  mOrig={l1:l1.trim(), l2:l2.trim(), color:dc, fest, esther};
+  document.getElementById('modal').style.display='flex';
+}
+
+function closeModal(){ document.getElementById('modal').style.display='none'; mKey=null; }
+
+function setMC(c){ mColor=c; renderMColors(); }
+
+function renderMColors(){
+  document.querySelectorAll('#m-cdr .cdot').forEach(el=>el.classList.toggle('on',el.dataset.c===mColor));
+}
+
+function saveModal(){
+  if(!mKey || !mOrig) return;
+  const key=mKey, o=mOrig;
+  const l1=document.getElementById('m-l1').value.trim();
+  const l2=document.getElementById('m-l2').value.trim();
+  const fest=document.getElementById('m-fest').checked;
+  const esther=document.getElementById('m-esther').checked;
+  const changed = l1!==o.l1 || l2!==o.l2 || mColor!==o.color;
+
+  // Festivo: solo si cambia (así se conserva el nombre y no se congela el día)
+  if(fest && !o.fest) festivos[key]='Festivo';
+  else if(!fest && o.fest) delete festivos[key];
+
+  if(esther && !o.esther){
+    // Nueva Tarde Esther: se quita cualquier override para que el turno se pueda mover aquí
+    esthers.add(key);
+    delete clickOvs[key];
+  } else {
+    if(!esther && o.esther) esthers.delete(key);
+    // Solo se guarda un override si el usuario ha tocado el contenido
+    if(changed) clickOvs[key]=(l1||l2)?{line1:l1,line2:l2,color:mColor}:null;
+  }
+
+  renderFestivoTags();
+  renderEstherTags();
+  closeModal();
+  generate();
+}
+
+function clearMDay(){
+  if(!mKey) return;
+  clickOvs[mKey]=null;
+  closeModal();
+  generate();
+}
+
+// ── CSV ───────────────────────────────────────────────────────────────────────
+function exportCSV(){
+  const month0=parseInt(document.getElementById('sel-month').value);
+  const month1=month0+1;
+  const year=parseInt(document.getElementById('sel-year').value);
+  const semIni=document.querySelector('input[name="sw"]:checked').value;
+  const days=new Date(year,month1,0).getDate();
+  const sched=buildSchedule(year,month1,semIni);
+  let csv='año,mes,dia,linea1,linea2,color\n';
+  for(let d=1;d<=days;d++){
+    const data=sched[fKey(year,month1,d)];
+    if(data) csv+=`${year},${month1},${d},"${data.line1}","${data.line2}",${data.color}\n`;
+  }
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`eventos_${MNAMES[month0]}_${year}.csv`;
+  a.click();
+}
+
+function importCSV(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const lines=ev.target.result.replace(/^\uFEFF/,'').split('\n').slice(1);
+    ovList=[]; ovId=0;
+    lines.forEach(line=>{
+      if(!line.trim()) return;
+      const cols=[]; let cur='',inQ=false;
+      for(let ch of line){
+        if(ch==='"'){inQ=!inQ;}
+        else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}
+        else cur+=ch;
+      }
+      cols.push(cur.trim());
+      if(cols.length<6) return;
+      const [yr,mo,day,l1,l2,color]=cols;
+      if(yr) document.getElementById('sel-year').value=yr;
+      if(mo) document.getElementById('sel-month').value=parseInt(mo)-1;
+      addOv(day,l1,l2,color||'blue');
+    });
+    e.target.value='';
+    onPeriodChange();
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+// ── PNG ───────────────────────────────────────────────────────────────────────
+let pngCache = null, pngTimer = null;
+
+function pngName(){
+  const m=parseInt(document.getElementById('sel-month').value);
+  const y=parseInt(document.getElementById('sel-year').value);
+  return `calendario_${MNAMES[m]}_${y}.png`;
+}
+
+// Dibuja una copia a tamaño escritorio (920 px), así el PNG sale igual en móvil y en PC
+async function renderPNGBlob(){
+  const src=document.getElementById('calendar-render');
+  if(!src.querySelector('.cal-title')) return null;
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;left:-10000px;top:0;width:920px;';
+  const clone=src.cloneNode(true);
+  clone.removeAttribute('id'); clone.classList.remove('compact'); clone.style.width='920px';
+  wrap.appendChild(clone); document.body.appendChild(wrap);
+  try{
+    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+    const canvas=await html2canvas(clone,{backgroundColor:'#ffffff',scale:2,useCORS:true,logging:false,windowWidth:1200});
+    return await new Promise(r=>canvas.toBlob(r,'image/png'));
+  } finally { wrap.remove(); }
+}
+
+// Se prepara el PNG en segundo plano para poder compartirlo al instante al pulsar (iOS exige rapidez)
+function schedulePrerender(){
+  clearTimeout(pngTimer);
+  pngTimer=setTimeout(async()=>{
+    try{ const b=await renderPNGBlob(); if(b) pngCache={blob:b,name:pngName()}; }catch(e){}
+  },700);
+}
+
+function saveBlob(blob,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+async function getPNG(){
+  if(!document.getElementById('calendar-render').querySelector('.cal-title')){ alert('Primero genera el calendario.'); return null; }
+  if(pngCache) return pngCache;
+  const b=await renderPNGBlob();
+  return b?{blob:b,name:pngName()}:null;
+}
+
+async function downloadPNG(){
+  const p=await getPNG(); if(!p) return;
+  saveBlob(p.blob,p.name);
+}
+
+async function sharePNG(){
+  const p=await getPNG(); if(!p) return;
+  const file=new File([p.blob],p.name,{type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file],title:p.name}); return; }
+    catch(e){ if(e&&e.name==='AbortError') return; }
+  }
+  saveBlob(p.blob,p.name);
+}
+
+function clearAll(){
+  if(!confirm('¿Borrar todos los cambios manuales?')) return;
+  ovList=[]; ovId=0; clickOvs={}; esthers=new Set(); pngCache=null;
+  onPeriodChange();
+  document.getElementById('calendar-render').innerHTML='<div class="hint"><strong>Selecciona el mes y pulsa "Generar calendario"</strong></div>';
+  document.getElementById('legend').style.display='none';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  if(!loadState()){
+    // Primera vez: mes siguiente al actual
+    const n=new Date(); n.setDate(1); n.setMonth(n.getMonth()+1);
+    document.getElementById('sel-month').value=n.getMonth();
+    document.getElementById('sel-year').value=n.getFullYear();
+  }
+  onPeriodChange();
+  generate();
+
+  // Botón "Compartir" solo si el dispositivo permite compartir archivos
+  try{
+    const t=new File([''],'t.png',{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[t]})) document.getElementById('btn-share').style.display='';
+  }catch(e){}
+
+  // Re-dibujar al girar la pantalla / cambiar de tamaño
+  window.matchMedia('(max-width: 820px)').addEventListener('change',()=>{
+    if(document.getElementById('calendar-render').querySelector('.cal-title')) generate();
+  });
+
+  // Modo sin conexión
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+});
+</script>
+</body>
+</html>
